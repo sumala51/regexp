@@ -73,6 +73,8 @@ def extract_sql_components(query):
     # Cleaning and formatting results
     #tables1 = set([t[0] or t[1] for t in tables if t])  # Handling multiple capturing groups
     #tables = list(tables1)
+    tables1 = set(tables)
+    tables = list(tables1)
     columns = columns.group(1).split(',') if columns else []
     #join_conditions = [j.strip() for j in join_conditions]
     where_clause = where_clause.group(1) if where_clause else ''
@@ -87,13 +89,20 @@ def extract_sql_components(query):
 # Example SQL query
 sql_query = """
 update $$data_project_id.$$OSI_STAGE.BIO_INFO_W
+set DW_ACTN_IN = 'I'
+where swo_prsn_id not in (select swo_prsn_id from
+$$data_project_id.$$OSI_STAGE.BT_ARCH_TRK_T BAT
+where BAT.curr_in = 1
+) ;
+
+update $$data_project_id.$$OSI_STAGE.BIO_INFO_W
 set DW_ACTN_IN = 'U'
 where swb_prsn_id in (select ABSP.swB_prsn_id from
 $$data_project_id.$$OSI_STAGE.ALL_BT_SWB_PRSN_S ABSP
 inner join $$data_project_id.$$OSI_STAGE.BT_ARCH_TRK_T BAT
 on ABSP.swb_pran_id = BAT.swb_pran_id
 where ABSP.ONL_APPR_TS > BAT.PDF_FIRST_USE_DT
-AND BAT.CURR_IN = 1);   
+AND BAT.CURR_IN = 1);  
 """
 
 alias_mapping = extract_table_aliases(sql_query)

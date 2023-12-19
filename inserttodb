@@ -1,0 +1,53 @@
+
+def write_to_bigquery(result_dict, service_account_key_path, project_id, dataset_id, table_id):
+    # Create a BigQuery client using service account credentials
+    credentials = service_account.Credentials.from_service_account_file(
+        service_account_key_path,
+        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+    )
+
+    client = bigquery.Client(credentials=credentials, project=project_id)
+
+    # Specify the destination table
+    destination_table = f"{project_id}.{dataset_id}.{table_id}"
+
+    # Create a list of table references
+    tables = result_dict['tables']
+    columns = result_dict['columns']
+    join_conditions = result_dict['join_conditions']
+    where_clause = result_dict['where_clause']
+
+    # Combine tables and columns for the SELECT statement
+    select_statement = f"SELECT {', '.join(columns)} FROM {', '.join(tables)}"
+
+    # Combine tables and join conditions for the FROM and JOIN clauses
+    from_join_clause = ' '.join([f"JOIN {table} ON {condition}" for table, condition in zip(tables[1:], join_conditions)])
+
+    # Combine the entire query
+    final_query = f"{select_statement} {from_join_clause} WHERE {where_clause}"
+
+    # Run the query and save the results to the destination table
+    job_config = bigquery.QueryJobConfig(destination=destination_table)
+    query_job = client.query(final_query, job_config=job_config)
+
+    # Wait for the query to complete
+    query_job.result()
+
+    print(f"Query results inserted into {destination_table}")
+
+# Example usage
+result_dict = {
+    'tables': ['$$data_project_id.$$OSI_STAGE.BT_ARCH_TRK_T', '$$data_project_id.$$OSI_STAGE.ALL_BT_SWB_PRSN_S', '$$data_project_id.$$OSI_STAGE.BIO_INFO_W'],
+    'columns': ['swo_prsn_id'],
+    'join_conditions': ['$OSI_STAGE.ALL_BT_SWB_PRSN_S.swb_pran_id = $OSI_STAGE.BT_ARCH_TRK_T.swb_pran_id'],
+    'where_clause': "swo_prsn_id not in (select swo_prsn_id from $$data_project_id.$$OSI_STAGE.BT_ARCH_TRK_T BAT where $OSI_STAGE.BT_ARCH_TRK_T.curr_in = 1 ) ; update $$data_project_id.$$OSI_STAGE.BIO_INFO_W set DW_ACTN_IN = 'U' where swb_prsn_id in (select $OSI_STAGE.ALL_BT_SWB_PRSN_S.swB_prsn_id from $$data_project_id.$$OSI_STAGE.ALL_BT_SWB_PRSN_S ABSP inner join $$data_project_id.$$OSI_STAGE.BT_ARCH_TRK_T BAT on $OSI_STAGE.ALL_BT_SWB_PRSN_S.swb_pran_id = $OSI_STAGE.BT_ARCH_TRK_T.swb_pran_id where $OSI_STAGE.ALL_BT_SWB_PRSN_S.ONL_APPR_TS > $OSI_STAGE.BT_ARCH_TRK_T.PDF_FIRST_USE_DT AND $OSI_STAGE.BT_ARCH_TRK_T.CURR_IN = 1);"
+}
+
+# Replace with your service account key path, project ID, dataset ID, and table ID
+service_account_key_path = 'path/to/your/service/account/key.json'
+project_id = 'your-project-id'
+dataset_id = 'your-dataset-id'
+table_id = 'your-table-id'
+
+# Call the function to write to BigQuery
+write_to_bigquery(result_dict, service_account_key_path, project_id, dataset_id, table_id)

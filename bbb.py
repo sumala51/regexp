@@ -1,25 +1,22 @@
 import re
 
-
 def extract_table_aliases(query):
-    # Regular expression to find table names and their aliases
-    pattern = re.compile(r'\bFROM\s+(\w+)(?:\s+(\w+))?\s+|JOIN\s+(\w+)(?:\s+(\w+))?\s+|\bLEFT(\s+)\s+(\w+)(?:\s+(\w+))?\s+', re.IGNORECASE)
+    # Normalize spaces to help regex matching
+    query = ' '.join(query.split())
 
-    # Find all matches in the query
-    matches = pattern.findall(query)
-    # Create a dictionary to store table names and aliases
-    table_dict = {}
+    # Pattern to extract table names and aliases
+    table_alias_pattern = r'\$\$(\w+)\.(\w+)\s+([a-zA-Z_]\w*)'
 
-    # Iterate through the matches and populate the dictionary
-    for match in matches:
-        table_name = match[0] or match[2]
-        alias = match[1] or match[3] or None
-        if len(alias) > 1:
-            alias = table_name
-        table_dict[table_name] = alias
+    # Extracting components
+    matches = re.finditer(table_alias_pattern, query)
+
+    # Creating a dictionary with the desired format
+    table_dict = {
+        f'${match.group(1)}.{match.group(2)}': match.group(3)
+        for match in matches
+    }
 
     return table_dict
-
 
 def replace_aliases_with_table_names(query, alias_to_table_mapping):
     for table, alias in alias_to_table_mapping.items():
@@ -106,7 +103,8 @@ AND BAT.CURR_IN = 1);
 """
 
 alias_mapping = extract_table_aliases(sql_query)
-#print(alias_mapping)
+print("PRINTING ALIAS MAPPING")
+print(alias_mapping)
 modified_query = replace_aliases_with_table_names(sql_query, alias_mapping)
 #print(modified_query)
 components = extract_sql_components(modified_query)

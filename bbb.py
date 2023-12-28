@@ -109,3 +109,10 @@ modified_query = replace_aliases_with_table_names(sql_query, alias_mapping)
 #print(modified_query)
 components = extract_sql_components(modified_query)
 print(components)
+====
+
+table_dict = {}
+for match in matches:
+    key = '${}.{}'.format(match.group(1), match.group(2))
+    value = match.group(3)
+    table_dict[key] = value
